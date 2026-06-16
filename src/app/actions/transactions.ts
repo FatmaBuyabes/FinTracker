@@ -11,17 +11,19 @@ interface TransactionData {
   category_id?: string | null
   date: string
   description?: string | null
+  attachment_url?: string | null
 }
 
 async function getUser() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) return { supabase, user: null }
   return { supabase, user }
 }
 
 export async function createTransaction(data: TransactionData) {
   const { supabase, user } = await getUser()
+  if (!user) return { error: 'Not authenticated' }
 
   const { error } = await supabase.from('transactions').insert({
     ...data,
@@ -39,6 +41,7 @@ export async function createTransaction(data: TransactionData) {
 
 export async function updateTransaction(id: string, data: TransactionData) {
   const { supabase, user } = await getUser()
+  if (!user) return { error: 'Not authenticated' }
 
   const { error } = await supabase
     .from('transactions')
@@ -56,6 +59,7 @@ export async function updateTransaction(id: string, data: TransactionData) {
 
 export async function deleteTransaction(id: string) {
   const { supabase, user } = await getUser()
+  if (!user) return { error: 'Not authenticated' }
 
   const { error } = await supabase
     .from('transactions')

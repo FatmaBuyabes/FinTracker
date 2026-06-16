@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Paperclip, X, FileText, ImageIcon } from 'lucide-react'
 import { createTransaction, updateTransaction } from '@/app/actions/transactions'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,7 +35,39 @@ interface TransactionFormProps {
 export function TransactionForm({ categories, transaction, onSuccess }: TransactionFormProps) {
   const [isPending, startTransition] = useTransition()
   const [serverError, setServerError] = useState<string | null>(null)
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(transaction?.attachment_url ?? null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const isEdit = !!transaction
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadError(null)
+    setAttachmentFile(file)
+    if (file.type.startsWith('image/')) {
+      setAttachmentPreview(URL.createObjectURL(file))
+    } else {
+      setAttachmentPreview(null) // PDF — no image preview
+    }
+  }
+
+  const clearAttachment = () => {
+    setAttachmentFile(null)
+    setAttachmentPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const uploadFile = async (file: File): Promise<string | null> => {
+    const supabase = createClient()
+    const ext = file.name.split('.').pop()
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    const { data, error } = await supabase.storage.from('fintech-attach').upload(path, file, { upsert: false })
+    if (error) { setUploadError(error.message); return null }
+    const { data: { publicUrl } } = supabase.storage.from('fintech-attach').getPublicUrl(data.path)
+    return publicUrl
+  }
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -52,11 +86,25 @@ export function TransactionForm({ categories, transaction, onSuccess }: Transact
 
   const onSubmit = (values: FormValues) => {
     setServerError(null)
+    setUploadError(null)
     startTransition(async () => {
+      let attachment_url: string | null = isEdit ? (transaction.attachment_url ?? null) : null
+
+      // Upload new file if one was selected
+      if (attachmentFile) {
+        const url = await uploadFile(attachmentFile)
+        if (!url) return // uploadError already set
+        attachment_url = url
+      } else if (!attachmentPreview) {
+        // User explicitly cleared the attachment
+        attachment_url = null
+      }
+
       const data = {
         ...values,
         category_id: values.category_id || null,
         description: values.description || null,
+        attachment_url,
       }
       const result = isEdit
         ? await updateTransaction(transaction.id, data)
@@ -153,6 +201,56 @@ export function TransactionForm({ categories, transaction, onSuccess }: Transact
         <div className="space-y-1.5">
           <Label htmlFor="description">Notes (optional)</Label>
           <Input id="description" placeholder="Add a note..." {...register('description')} />
+        </div>
+
+        {/* Attachment */}
+        <div className="space-y-1.5">
+          <Label>Attachment (optional)</Label>
+
+          {/* Show existing or new preview */}
+          {attachmentPreview && (
+            <div className="relative w-full overflow-hidden rounded-lg border border-border bg-muted/40">
+              {attachmentPreview.startsWith('blob:') || attachmentPreview.match(/\.(jpg|jpeg|png|webp|gif)(\?|$)/i) ? (
+                <img src={attachmentPreview} alt="Attachment preview" className="max-h-36 w-full object-contain p-2" />
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-3">
+                  <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <span className="truncate text-sm text-muted-foreground">
+                    {attachmentFile?.name ?? 'Attached file'}
+                  </span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={clearAttachment}
+                className="absolute right-2 top-2 rounded-full bg-background/80 p-1 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {!attachmentPreview && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              <Paperclip className="h-4 w-4" />
+              Attach bill / receipt
+            </button>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+          <p className="text-xs text-muted-foreground">JPG, PNG, WebP, GIF or PDF · max 10 MB</p>
         </div>
       </div>
 

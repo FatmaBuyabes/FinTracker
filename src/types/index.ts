@@ -29,6 +29,7 @@ export interface Transaction {
   type: TransactionType
   title: string
   description: string | null
+  attachment_url: string | null
   date: string
   created_at: string
   updated_at: string

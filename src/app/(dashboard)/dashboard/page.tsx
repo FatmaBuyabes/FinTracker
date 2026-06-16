@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { TrendingUp, TrendingDown, DollarSign, PiggyBank } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/Header'
@@ -5,6 +6,8 @@ import { StatsCard } from '@/components/dashboard/StatsCard'
 import { MonthlyChart } from '@/components/dashboard/MonthlyChart'
 import { CategoryChart } from '@/components/dashboard/CategoryChart'
 import { RecentTransactions } from '@/components/dashboard/RecentTransactions'
+import { InsightSection } from '@/components/dashboard/InsightSection'
+import { DailyInsightSkeleton } from '@/components/dashboard/DailyInsightCard'
 import { getCurrentMonth, getCurrentYear, getMonthName, getShortMonthName } from '@/lib/utils'
 import type { MonthlyData, CategorySpending } from '@/types'
 
@@ -87,6 +90,11 @@ export default async function DashboardPage() {
       />
 
       <div className="p-6 space-y-6">
+        {/* AI Daily Insight — loads async without blocking stats/charts */}
+        <Suspense fallback={<DailyInsightSkeleton />}>
+          <InsightSection />
+        </Suspense>
+
         {/* Stats grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
