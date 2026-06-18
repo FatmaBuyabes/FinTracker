@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { Sun, Moon, Monitor, User, DollarSign, Palette } from 'lucide-react'
 import { updateProfile } from '@/app/actions/settings'
@@ -30,7 +30,12 @@ interface SettingsClientProps {
 
 export function SettingsClient({ profile, userEmail }: SettingsClientProps) {
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  // next-themes returns undefined on the server — only apply theme-conditional
+  // classes after hydration to avoid SSR/client className mismatch.
+  useEffect(() => { setMounted(true) }, [])
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
@@ -111,7 +116,7 @@ export function SettingsClient({ profile, userEmail }: SettingsClientProps) {
                 key={id}
                 onClick={() => setTheme(id)}
                 className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-sm font-medium transition-all ${
-                  theme === id ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:bg-accent'
+                  mounted && theme === id ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:bg-accent'
                 }`}
               >
                 <Icon className="h-5 w-5" />
