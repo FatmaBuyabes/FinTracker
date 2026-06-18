@@ -1,21 +1,32 @@
 'use client'
 
-import { useState } from 'react'
-import { Sparkles, X, Clock, Bell, Lightbulb } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { Sparkles, X, Clock, Bell, Lightbulb, RefreshCw } from 'lucide-react'
 import type { AIInsight } from '@/lib/ai'
 
 export function DailyInsightCard({ insight }: { insight: AIInsight }) {
   const [dismissed, setDismissed] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+
   if (dismissed) return null
 
+  const handleRefresh = () => {
+    startTransition(() => {
+      router.refresh()
+    })
+  }
+
   return (
-    <div className="relative rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-primary/5 to-transparent p-4 pr-10 shadow-sm">
+    <div className={`relative rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-primary/5 to-transparent p-4 pr-10 shadow-sm transition-opacity duration-300 ${isPending ? 'opacity-60' : 'opacity-100'}`}>
       {/* Dismiss */}
       <button
         type="button"
         aria-label="Dismiss insight"
         onClick={() => setDismissed(true)}
-        className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors"
+        disabled={isPending}
+        className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
       >
         <X className="h-3.5 w-3.5" />
       </button>
@@ -29,6 +40,18 @@ export function DailyInsightCard({ insight }: { insight: AIInsight }) {
         <span className="ml-auto mr-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
           Today
         </span>
+
+        {/* Refresh button */}
+        <button
+          type="button"
+          aria-label="Refresh insight"
+          onClick={handleRefresh}
+          disabled={isPending}
+          title="Refresh insight with latest spending"
+          className="rounded-md p-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
       {/* Rows */}
@@ -57,6 +80,12 @@ export function DailyInsightCard({ insight }: { insight: AIInsight }) {
           <p className="text-sm leading-relaxed text-muted-foreground">{insight.spendingTip}</p>
         </div>
       </div>
+
+      {isPending && (
+        <p className="mt-3 text-center text-[11px] text-muted-foreground animate-pulse">
+          Refreshing insight with your latest spending…
+        </p>
+      )}
     </div>
   )
 }

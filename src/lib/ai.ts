@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
 export interface AIInsight {
@@ -13,6 +14,7 @@ export interface AIInsight {
  * Returns null on any error so the dashboard degrades gracefully.
  */
 export async function getAIDailyInsight(): Promise<AIInsight | null> {
+  noStore() // always fetch fresh — never serve a cached response
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
