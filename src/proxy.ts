@@ -1,8 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
 
-const DEMO_EMAIL    = 'demo@fintrack.app'
-const DEMO_PASSWORD = 'demo1234'
+// Public routes that don't require authentication
+const AUTH_ROUTES = ['/login', '/signup', '/register']
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -14,7 +14,6 @@ export async function proxy(request: NextRequest) {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) => {
-          // Write to both the mutated request and the response
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
@@ -25,16 +24,21 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Check for an active session
   const { data: { user } } = await supabase.auth.getUser()
+  const { pathname } = request.nextUrl
 
-  // No session → auto sign-in as demo user so RLS passes
-  if (!user) {
-    await supabase.auth.signInWithPassword({
-      email: DEMO_EMAIL,
-      password: DEMO_PASSWORD,
-    })
-    // Cookies are written via setAll above — response already has them
+  const isAuthRoute = AUTH_ROUTES.some(r => pathname.startsWith(r))
+
+  // Logged-in user visiting /login or /signup → redirect to dashboard
+  if (user && isAuthRoute) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Guest visiting a protected route → redirect to login
+  if (!user && !isAuthRoute) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   return response
