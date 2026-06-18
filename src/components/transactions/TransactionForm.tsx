@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -76,10 +76,18 @@ export function TransactionForm({ categories, transaction, onSuccess }: Transact
       amount: transaction?.amount ?? undefined,
       type: transaction?.type ?? 'expense',
       category_id: transaction?.category_id ?? undefined,
-      date: transaction?.date ?? toISODateString(new Date()),
+      date: transaction?.date ?? '',  // set by useEffect on client to avoid SSR/hydration mismatch
       description: transaction?.description ?? '',
     },
   })
+
+  // Set today's date only on the client, after hydration, to avoid SSR mismatch
+  useEffect(() => {
+    if (!transaction?.date) {
+      setValue('date', toISODateString(new Date()))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const watchedType = watch('type')
   const filteredCategories = categories.filter(c => c.type === watchedType || c.type === 'both')
