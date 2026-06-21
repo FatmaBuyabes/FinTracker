@@ -91,8 +91,8 @@ export default function PricingPage() {
         throw new Error(data.error ?? 'Failed to create payment')
       }
 
-      // Redirect to MyFatoorah hosted payment page
-      window.location.href = data.invoiceUrl!
+      // Open MyFatoorah hosted payment page in a new tab
+      window.open(data.invoiceUrl!, '_blank', 'noopener,noreferrer')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
       setLoading(null)

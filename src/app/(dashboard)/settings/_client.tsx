@@ -84,7 +84,7 @@ export function SettingsClient({ profile, userEmail, subscription, paymentStatus
       })
       const data = await res.json() as { invoiceUrl?: string; error?: string }
       if (!res.ok || data.error) throw new Error(data.error ?? 'Payment failed')
-      window.location.href = data.invoiceUrl!
+      window.open(data.invoiceUrl!, '_blank', 'noopener,noreferrer')
     } catch (err) {
       setUpgradeError(err instanceof Error ? err.message : 'Could not start payment')
       setUpgrading(null)
