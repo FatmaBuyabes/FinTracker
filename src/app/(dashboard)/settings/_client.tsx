@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
+import { PaymentMethodModal } from '@/components/payment/PaymentMethodModal'
 import { Sun, Moon, Monitor, User, DollarSign, Palette, CreditCard, Sparkles, Users, Zap, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { updateProfile } from '@/app/actions/settings'
 import { Button } from '@/components/ui/button'
@@ -46,8 +47,8 @@ export function SettingsClient({ profile, userEmail, subscription, paymentStatus
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted]         = useState(false)
   const [isPending, startTransition]  = useTransition()
-  const [upgrading, setUpgrading]     = useState<string | null>(null)
   const [upgradeError, setUpgradeError] = useState<string | null>(null)
+  const [payModal, setPayModal]       = useState<{ tier: 'pro' | 'family'; amount: number } | null>(null)
   const [success, setSuccess]         = useState(false)
   const [error, setError]             = useState<string | null>(null)
   const [fullName, setFullName]       = useState(profile?.full_name ?? '')
@@ -73,26 +74,22 @@ export function SettingsClient({ profile, userEmail, subscription, paymentStatus
     })
   }
 
-  const handleUpgrade = async (targetTier: 'pro' | 'family') => {
+  const PLAN_AMOUNTS = { pro: 2.990, family: 4.990 } as const
+
+  const handleUpgrade = (targetTier: 'pro' | 'family') => {
     setUpgradeError(null)
-    setUpgrading(targetTier)
-    try {
-      const res  = await fetch('/api/payment/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier: targetTier }),
-      })
-      const data = await res.json() as { invoiceUrl?: string; error?: string }
-      if (!res.ok || data.error) throw new Error(data.error ?? 'Payment failed')
-      window.open(data.invoiceUrl!, '_blank', 'noopener,noreferrer')
-    } catch (err) {
-      setUpgradeError(err instanceof Error ? err.message : 'Could not start payment')
-      setUpgrading(null)
-    }
+    setPayModal({ tier: targetTier, amount: PLAN_AMOUNTS[targetTier] })
   }
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl space-y-6">
+      {payModal && (
+        <PaymentMethodModal
+          tier={payModal.tier}
+          amount={payModal.amount}
+          onClose={() => setPayModal(null)}
+        />
+      )}
 
       {/* Payment status banner */}
       {paymentStatus === 'success' && (
@@ -161,12 +158,9 @@ export function SettingsClient({ profile, userEmail, subscription, paymentStatus
                 <button
                   type="button"
                   onClick={() => handleUpgrade('pro')}
-                  disabled={!!upgrading}
                   className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
                 >
-                  {upgrading === 'pro' ? (
-                    <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> Redirecting…</>
-                  ) : 'Upgrade to Pro'}
+                  Upgrade to Pro
                 </button>
               </div>
 
@@ -185,12 +179,9 @@ export function SettingsClient({ profile, userEmail, subscription, paymentStatus
                 <button
                   type="button"
                   onClick={() => handleUpgrade('family')}
-                  disabled={!!upgrading}
                   className="w-full rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-500/20 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
                 >
-                  {upgrading === 'family' ? (
-                    <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> Redirecting…</>
-                  ) : 'Upgrade to Family'}
+                  Upgrade to Family
                 </button>
               </div>
             </div>
@@ -206,10 +197,9 @@ export function SettingsClient({ profile, userEmail, subscription, paymentStatus
               <button
                 type="button"
                 onClick={() => handleUpgrade('family')}
-                disabled={!!upgrading}
-                className="rounded-lg border border-emerald-500/50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-500/10 transition-colors disabled:opacity-60"
+                className="rounded-lg border border-emerald-500/50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-500/10 transition-colors"
               >
-                {upgrading === 'family' ? '…' : 'Upgrade'}
+                Upgrade
               </button>
             </div>
           )}

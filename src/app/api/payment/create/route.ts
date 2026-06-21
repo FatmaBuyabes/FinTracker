@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json() as { tier?: string }
+    const body = await request.json() as { tier?: string; methodId?: number }
     const tier = body.tier as keyof typeof PLANS | undefined
     if (!tier || !PLANS[tier]) {
       return Response.json({ error: 'Invalid tier. Must be "pro" or "family".' }, { status: 400 })
@@ -26,14 +26,15 @@ export async function POST(request: NextRequest) {
     const plan   = PLANS[tier]
     const origin = request.nextUrl.origin
 
-    // 1. Get available payment methods for this amount
-    const methods = await initiatePayment(plan.amount)
-    if (!methods.length) {
-      return Response.json({ error: 'No payment methods available.' }, { status: 502 })
+    // Use the caller-supplied methodId, or fall back to first available
+    let methodId = body.methodId
+    if (!methodId) {
+      const methods = await initiatePayment(plan.amount)
+      if (!methods.length) {
+        return Response.json({ error: 'No payment methods available.' }, { status: 502 })
+      }
+      methodId = methods[0].PaymentMethodId
     }
-
-    // Pick the first available method (KNET/credit card depending on configuration)
-    const methodId = methods[0].PaymentMethodId
 
     // 2. Create the invoice — MyFatoorah returns a hosted payment page URL
     const { invoiceId, invoiceUrl } = await executePayment({

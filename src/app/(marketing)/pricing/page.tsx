@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Sparkles, Users, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PaymentMethodModal } from '@/components/payment/PaymentMethodModal'
 
 const PLANS = [
   {
@@ -68,39 +69,29 @@ const PLANS = [
 
 export default function PricingPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState<string | null>(null)
+  const [modal, setModal] = useState<{ tier: 'pro' | 'family'; amount: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const handleUpgrade = async (tier: 'pro' | 'family') => {
+  const handleUpgrade = (tier: 'pro' | 'family', amount: number) => {
     setError(null)
-    setLoading(tier)
-    try {
-      const res = await fetch('/api/payment/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier }),
+    // Check auth first with a quick probe — if 401, redirect to login
+    fetch('/api/payment/methods?amount=' + amount)
+      .then(r => {
+        if (r.status === 401) { router.push('/login?next=/pricing'); return }
+        setModal({ tier, amount })
       })
-      const data = await res.json() as { invoiceUrl?: string; error?: string }
-
-      if (!res.ok || data.error) {
-        // If unauthenticated, send to login first
-        if (res.status === 401) {
-          router.push(`/login?next=/pricing`)
-          return
-        }
-        throw new Error(data.error ?? 'Failed to create payment')
-      }
-
-      // Open MyFatoorah hosted payment page in a new tab
-      window.open(data.invoiceUrl!, '_blank', 'noopener,noreferrer')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-      setLoading(null)
-    }
+      .catch(() => setError('Could not connect to payment service'))
   }
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-16">
+      {modal && (
+        <PaymentMethodModal
+          tier={modal.tier}
+          amount={modal.amount}
+          onClose={() => setModal(null)}
+        />
+      )}
       {/* Header */}
       <div className="mb-12 text-center">
         <h1 className="text-4xl font-bold tracking-tight mb-3">
@@ -184,23 +175,15 @@ export default function PricingPage() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => handleUpgrade(plan.id as 'pro' | 'family')}
-                  disabled={!!loading}
+                  onClick={() => handleUpgrade(plan.id as 'pro' | 'family', plan.price!)}
                   className={cn(
-                    'flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-60',
+                    'flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors',
                     isPro
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                       : 'border border-border hover:bg-accent'
                   )}
                 >
-                  {isLoading ? (
-                    <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      Redirecting…
-                    </>
-                  ) : (
-                    plan.cta
-                  )}
+                  {plan.cta}
                 </button>
               )}
             </div>
