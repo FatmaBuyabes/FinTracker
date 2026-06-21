@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTransition } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Target, BarChart2, Settings, Wallet, LogOut } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Target, BarChart2, Settings, Wallet, LogOut, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/app/actions/auth'
 
@@ -15,11 +15,17 @@ const navItems = [
   { href: '/settings',     label: 'Settings',     icon: Settings },
 ]
 
-interface SidebarProps {
-  userEmail?: string | null
+const TIER_BADGE: Record<string, { label: string; className: string }> = {
+  pro:    { label: 'Pro',    className: 'bg-primary/10 text-primary' },
+  family: { label: 'Family', className: 'bg-emerald-500/10 text-emerald-600' },
 }
 
-export function Sidebar({ userEmail }: SidebarProps) {
+interface SidebarProps {
+  userEmail?: string | null
+  tier?: string | null
+}
+
+export function Sidebar({ userEmail, tier }: SidebarProps) {
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
@@ -27,8 +33,8 @@ export function Sidebar({ userEmail }: SidebarProps) {
     startTransition(async () => { await signOut() })
   }
 
-  // Derive initials from email for the avatar
   const initials = userEmail ? userEmail[0].toUpperCase() : '?'
+  const badge    = tier ? TIER_BADGE[tier] : null
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-border bg-sidebar">
@@ -63,6 +69,25 @@ export function Sidebar({ userEmail }: SidebarProps) {
             )
           })}
         </ul>
+
+        {/* Upgrade nudge — only shown on free tier */}
+        {!badge && (
+          <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-semibold text-primary">Upgrade to Pro</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-2.5 leading-relaxed">
+              Unlock full history, budgets, reports & AI insights.
+            </p>
+            <Link
+              href="/pricing"
+              className="block w-full rounded-lg bg-primary px-3 py-1.5 text-center text-[11px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              See plans →
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* User + Sign out */}
@@ -71,7 +96,14 @@ export function Sidebar({ userEmail }: SidebarProps) {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
             {initials}
           </div>
-          <p className="flex-1 truncate text-xs text-muted-foreground">{userEmail ?? 'Account'}</p>
+          <div className="flex-1 min-w-0">
+            <p className="truncate text-xs text-muted-foreground">{userEmail ?? 'Account'}</p>
+            {badge && (
+              <span className={cn('inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold', badge.className)}>
+                {badge.label}
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleSignOut}

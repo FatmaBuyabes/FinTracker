@@ -1,8 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
 
-// Public routes that don't require authentication
+// Routes that require the user to be logged OUT (redirect to /dashboard if logged in)
 const AUTH_ROUTES = ['/login', '/signup', '/register']
+
+// Routes that are fully public — no auth check at all
+const PUBLIC_ROUTES = ['/pricing', '/payment', '/api/']
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -27,7 +30,11 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  const isAuthRoute = AUTH_ROUTES.some(r => pathname.startsWith(r))
+  const isAuthRoute   = AUTH_ROUTES.some(r => pathname.startsWith(r))
+  const isPublicRoute = PUBLIC_ROUTES.some(r => pathname.startsWith(r))
+
+  // Fully public — no auth logic
+  if (isPublicRoute) return response
 
   // Logged-in user visiting /login or /signup → redirect to dashboard
   if (user && isAuthRoute) {
