@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
       updated_at:    new Date().toISOString(),
     }, { onConflict: 'user_id' })
 
+    if (!invoiceUrl) throw new Error('Payment gateway returned no checkout URL')
     return Response.json({ invoiceUrl })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Payment initiation failed'

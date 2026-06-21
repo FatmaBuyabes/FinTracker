@@ -88,9 +88,10 @@ export async function executePayment(params: {
   })
   const data = await res.json()
   if (!data.IsSuccess) throw new Error(data.Message ?? 'ExecutePayment failed')
+  // API returns "PaymentURL" (not "InvoiceURL") for the hosted checkout page
   return {
-    invoiceId:  data.Data.InvoiceId  as number,
-    invoiceUrl: data.Data.InvoiceURL as string,
+    invoiceId:  data.Data.InvoiceId   as number,
+    invoiceUrl: data.Data.PaymentURL  as string,
   }
 }
 
